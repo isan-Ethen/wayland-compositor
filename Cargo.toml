@@ -9,4 +9,4 @@ name = "redox-wayland-compositor"
 path = "src/main.rs"
 
 [dependencies]
-syscall = "0.2.1"
+redox_syscall = "0.5"

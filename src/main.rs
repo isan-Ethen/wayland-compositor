@@ -20,8 +20,6 @@ const WL_COMPOSITOR_NAME: &str = "wl_compositor";
 const XDG_WM_BASE_NAME: &str = "xdg_wm_base";
 const WL_SHM_NAME: &str = "wl_shm";
 
-extern crate syscall;
-
 struct Client {
     stream: fs::File,
     objects: HashMap<u32, String>,
