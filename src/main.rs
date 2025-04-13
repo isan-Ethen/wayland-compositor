@@ -163,7 +163,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let dir = format!("/tmp/redox-wayland-{}", syscall::getpid().unwrap());
         // Redoxのファイルシステムにディレクトリを作成
         fs::create_dir_all(&dir).expect("Failed to create XDG_RUNTIME_DIR");
-        env::set_var("XDG_RUNTIME_DIR", &dir);
+        unsafe { env::set_var("XDG_RUNTIME_DIR", &dir) };
         dir
     });
 
@@ -187,7 +187,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = unsafe { File::from_raw_fd(chan_fd as RawFd) };
 
     // 環境変数を設定して、wayland-infoなどのクライアントが接続できるようにする
-    env::set_var("WAYLAND_DISPLAY", &socket_name);
+    unsafe { env::set_var("WAYLAND_DISPLAY", &socket_name) };
 
     println!(
         "Redox Minimal Wayland compositor listening on {:?}",
