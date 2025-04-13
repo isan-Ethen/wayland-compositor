@@ -5,17 +5,14 @@ use std::io::{self, Read, Write};
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::path::Path;
 
-// Wayland protocol constants
 const WL_DISPLAY_SYNC: u16 = 0;
 const WL_DISPLAY_GET_REGISTRY: u16 = 1;
 const WL_REGISTRY_BIND: u16 = 0;
 const WL_CALLBACK_DONE: u16 = 0;
 
-// Global object IDs
 const DISPLAY_ID: u32 = 1;
 const REGISTRY_ID: u32 = 2;
 
-// Global interface names
 const WL_COMPOSITOR_NAME: &str = "wl_compositor";
 const XDG_WM_BASE_NAME: &str = "xdg_wm_base";
 const WL_SHM_NAME: &str = "wl_shm";
@@ -39,7 +36,6 @@ impl Client {
     }
 
     fn handle_message(&mut self) -> Result<bool, std::io::Error> {
-        // Read message header object id, size, opcode
         let mut header = [0u8; 8];
         if let Err(e) = self.stream.read_exact(&mut header) {
             if e.kind() == std::io::ErrorKind::UnexpectedEof {
@@ -58,26 +54,20 @@ impl Client {
         let mut body = vec![0u8; body_size];
         self.stream.read_exact(&mut body)?;
 
-        // Handle message by object id and opcode
         match (obj_id, opcode) {
             (DISPLAY_ID, WL_DISPLAY_SYNC) => {
-                // Get callback id
                 let callback_id = u32::from_ne_bytes([body[0], body[1], body[2], body[3]]);
                 self.objects.insert(callback_id, "wl_callback".to_string());
 
-                // Send callback done event
                 let mut response = vec![
-                    // Object ID (callback_id)
                     callback_id.to_ne_bytes()[0],
                     callback_id.to_ne_bytes()[1],
                     callback_id.to_ne_bytes()[2],
                     callback_id.to_ne_bytes()[3],
-                    // Size and opcode (WL_CALLBACK_DONE = 0)
                     12,
                     0,
                     0,
                     0,
-                    // Timestamp
                     0,
                     0,
                     0,
@@ -86,7 +76,6 @@ impl Client {
                 self.stream.write_all(&response)?;
             }
             (DISPLAY_ID, WL_DISPLAY_GET_REGISTRY) => {
-                // Get registry id
                 let registry_id = u32::from_ne_bytes([body[0], body[1], body[2], body[3]]);
                 self.objects.insert(registry_id, "wl_registry".to_string());
                 self.next_id = registry_id + 1;
@@ -115,33 +104,25 @@ impl Client {
     ) -> Result<(), std::io::Error> {
         let interface_bytes = interface.as_bytes();
         let interface_len = interface_bytes.len() + 1;
-        let aligned_len = (interface_len + 3) & !3; // Align to 4 bytes
+        let aligned_len = (interface_len + 3) & !3;
 
-        // message size
         let size = 16 + aligned_len;
 
-        // Get message
         let mut msg = Vec::with_capacity(size);
 
-        // Object ID (registry_id)
         msg.extend_from_slice(&registry_id.to_ne_bytes());
 
-        // Size and opcode (global = 0)
         msg.extend_from_slice(&((size << 16) as u32).to_ne_bytes());
 
-        // Name
         msg.extend_from_slice(&name.to_ne_bytes());
 
-        // Interface string
         msg.extend_from_slice(interface_bytes);
-        msg.push(0); // Terminate null
+        msg.push(0);
 
-        // Padding to align to 4 bytes
         while msg.len() < size - 4 {
             msg.push(0);
         }
 
-        // Version
         msg.extend_from_slice(&version.to_ne_bytes());
 
         self.stream.write_all(&msg)?;
@@ -149,14 +130,11 @@ impl Client {
     }
 }
 
-// Redox特有のエラーハンドリング
 fn from_syscall_error(error: syscall::Error) -> io::Error {
     io::Error::from_raw_os_error(error.errno as i32)
 }
 
-// Redoxのschemesシステムを使用して接続を処理
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // ランタイムディレクトリ設定
     let xdg_runtime_dir = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| {
         let dir = "/tmp/redox-wayland-99".to_string();
         fs::create_dir_all(&dir).expect("Failed to create XDG_RUNTIME_DIR");
@@ -164,18 +142,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         dir
     });
 
-    // Waylnadソケット名設定
     let socket_name = env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-0".to_string());
     let socket_path = Path::new(&xdg_runtime_dir).join(&socket_name);
 
-    // 既存のソケットを削除
     if socket_path.exists() {
         fs::remove_file(&socket_path)?;
     }
 
     let scheme_path = format!("chan:{}", socket_path.to_string_lossy());
 
-    // ファイルではなくschemeを直接オープン
     let chan_fd = syscall::open(&scheme_path, syscall::O_CREAT | syscall::O_RDWR)
         .map_err(from_syscall_error)?;
 
@@ -189,9 +164,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!("You can now run 'wayland-info' to connect to this compositor");
 
-    // クライアント接続を処理するループ
     loop {
-        // 'listen'操作を使用してクライアントからの接続を待機
         let client_fd =
             syscall::dup(listener.as_raw_fd() as usize, b"listen").map_err(from_syscall_error)?;
 
@@ -200,10 +173,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut client = Client::new(client_stream);
 
-        // クライアントとの通信ループ
         loop {
             match client.handle_message() {
-                Ok(true) => continue, // 処理を続行
+                Ok(true) => continue,
                 Ok(false) => {
                     println!("Client disconnected");
                     break;
