@@ -1,0 +1,12 @@
+[package]
+name = "redox-wayland-compositor"
+version = "0.1.0"
+edition = "2025"
+authors = ["Ibuki.O <isan.ethen@gmail.com>"]
+
+[[bin]]
+name = "redox-wayland-compositor"
+path = "src/main.rs"
+
+[dependencies]
+syscall = "0.2.1"  # Redoxのシステムコールライブラリ
