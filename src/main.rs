@@ -97,8 +97,6 @@ impl Client {
                 self.send_global_event(registry_id, 3, WL_SHM_NAME, 1)?;
             }
             (id, WL_REGISTRY_BIND) if self.objects.get(&id) == Some(&"wl_registry".to_string()) => {
-                // wayland-infoはinterface情報を取得するだけなので最低限の実装
-                // もっと詳細なbind処理が必要な場合はここで実装
             }
             _ => {
                 eprintln!("Unknown message: object_id={}, opcode={}", obj_id, opcode);
@@ -160,8 +158,7 @@ fn from_syscall_error(error: syscall::Error) -> io::Error {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ランタイムディレクトリ設定
     let xdg_runtime_dir = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| {
-        let dir = format!("/tmp/redox-wayland-{}", syscall::getpid().unwrap());
-        // Redoxのファイルシステムにディレクトリを作成
+        let dir = "/tmp/redox-wayland-99".to_string();
         fs::create_dir_all(&dir).expect("Failed to create XDG_RUNTIME_DIR");
         unsafe { env::set_var("XDG_RUNTIME_DIR", &dir) };
         dir
@@ -176,8 +173,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::remove_file(&socket_path)?;
     }
 
-    // Redoxの'chan:'スキームを使用してチャネルを作成
-    // これがRedox特有のIPCメカニズム
     let scheme_path = format!("chan:{}", socket_path.to_string_lossy());
 
     // ファイルではなくschemeを直接オープン
@@ -186,7 +181,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = unsafe { File::from_raw_fd(chan_fd as RawFd) };
 
-    // 環境変数を設定して、wayland-infoなどのクライアントが接続できるようにする
     unsafe { env::set_var("WAYLAND_DISPLAY", &socket_name) };
 
     println!(
