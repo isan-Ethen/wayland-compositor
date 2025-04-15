@@ -149,7 +149,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::remove_file(&socket_path)?;
     }
 
-    let scheme_path = format!("chan:{}", socket_path.to_string_lossy());
+    let scheme_path = format!("/scheme/chan", socket_path.to_string_lossy());
 
     let chan_fd = syscall::open(&scheme_path, syscall::O_CREAT | syscall::O_RDWR)
         .map_err(from_syscall_error)?;
